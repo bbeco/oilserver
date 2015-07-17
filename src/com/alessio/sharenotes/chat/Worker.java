@@ -23,7 +23,7 @@ public class Worker implements Runnable {
 	public void run() {
 		System.out.println("Inizio worker del client: " + client.getSocket().getInetAddress().toString());
 		
-		for(;;) {
+		while(!client.getSocket().isClosed()) {
 			String s = client.receive();
 			System.out.println("Ricevuto messaggio: " + s);
 			
@@ -89,7 +89,7 @@ public class Worker implements Runnable {
 			Class.forName(driverName);
 			Connection c = DriverManager.getConnection(dbURL);
 			Statement stmt = c.createStatement();
-			String query = "SELECT sender, recipient, payload, ts FROM chat WHERE (recipient = " + cl.userID + ") AND ts > " + ts + " ;";
+			String query = "SELECT sender, recipient, payload, ts FROM chat WHERE (recipient = " + cl.userID + " OR sender = " + cl.userID + ") AND ts > " + ts + " ORDER BY ts;";
 			System.out.println("Query: "+query);
 			ResultSet rs = stmt.executeQuery(query);
 			
@@ -97,13 +97,17 @@ public class Worker implements Runnable {
 				Message msg = new Message(rs.getString("sender"),rs.getString("recipient"),rs.getString("payload"),rs.getLong("ts"));
 				String json = msg.toJSONString();
 				System.out.println("Invio: " + json);				
-				cl.send(json);	
+				cl.send(json);
+				Thread.sleep(100);
 			}
 			
 			stmt.close();
 			c.close();
 		} catch (SQLException | ClassNotFoundException ex) {
 			ex.printStackTrace();
+		} catch (InterruptedException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
 		}
 		System.out.println("Fine sendUnreadMessages()");
 	}

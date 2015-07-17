@@ -60,6 +60,7 @@ public class Client {
         	return null;
         }
         
+        
         String s = new String(buffer);
         System.out.println("receive(): " + s);
         return s;
