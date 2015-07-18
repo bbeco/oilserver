@@ -71,7 +71,7 @@ public class Worker implements Runnable {
             Class.forName(driverName);
             Connection c = DriverManager.getConnection(dbURL);
             Statement stmt = c.createStatement();
-            String query = "INSERT INTO CHAT (sender,recipient,payload,ts) VALUES ('"+m.sender+"','"+m.recipient+"','"+m.payload+"',"+m.ts+");";
+            String query = "INSERT INTO CHAT (sender,recipient,payload,ts) VALUES ('"+m.sender+"','"+m.recipient+"','"+replaceShit(m.payload)+"',"+m.ts+");";
             System.out.println("Query: "+query);
             stmt.executeUpdate(query);
             stmt.close();
@@ -94,7 +94,8 @@ public class Worker implements Runnable {
 			ResultSet rs = stmt.executeQuery(query);
 			
 			while (rs.next()) {
-				Message msg = new Message(rs.getString("sender"),rs.getString("recipient"),rs.getString("payload"),rs.getLong("ts"));
+				System.out.println(rs.getString("payload"));
+				Message msg = new Message(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts"));
 				String json = msg.toJSONString();
 				System.out.println("Invio: " + json);				
 				cl.send(json);
@@ -111,5 +112,10 @@ public class Worker implements Runnable {
 		}
 		System.out.println("Fine sendUnreadMessages()");
 	}
-
+	
+	private static String replaceShit(String s){
+        //s = s.replaceAll("\"","\\\\\"");
+        s = s.replaceAll("'", "''");
+        return s;
+    }
 }
