@@ -21,6 +21,7 @@ public class Message {
 		this.ts = Long.parseLong(obj.getString("ts"), 10);
 	}
 	
+	/* added to create a message on client side */
     public Message(String sender, String recipient, String payload, long ts) {
         this.sender = sender;
         this.recipient = recipient;

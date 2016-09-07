@@ -8,6 +8,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+/*
+ * FIXME the client list is accessed by multiple threads. Even though every thread is responsible of removing its own 
+ * client from this list, i am not sure java List are thread safe. 
+ */
 public class ChatServer {
 	private ServerSocket socket;
 	private int port;
@@ -16,7 +20,8 @@ public class ChatServer {
 	public ChatServer(int port) {
 		this.port = port;
 		try {
-			this.socket = new ServerSocket(port); 
+			this.socket = new ServerSocket(port);
+			this.socket.setReuseAddress(true);
 		} catch (IOException ex) {
 			System.err.println("Errore creazione del server. Terminazione");
 			System.exit(1);
@@ -47,6 +52,7 @@ public class ChatServer {
 			System.exit(0);
 		}
 
+		/* list of registered clients */
 		List<Client> clients = new LinkedList<Client>();
 		ChatServer server = new ChatServer(port);
 		ExecutorService executor = Executors.newFixedThreadPool(100);

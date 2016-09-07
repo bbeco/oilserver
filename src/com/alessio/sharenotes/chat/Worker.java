@@ -36,6 +36,7 @@ public class Worker implements Runnable {
 			Message message = new Message(s);
 			
 			if (message.registration != null) {
+				/* If client has just signed in, send all messages not received yet */
 				client.userID = message.registration;
 				sendUnreadMessages(client,message.ts);
 			} else if (!message.recipient.isEmpty()) {
@@ -48,7 +49,7 @@ public class Worker implements Runnable {
 			} else {
 				System.out.println("Ricevuto JSON non valido :" + s);
 			}
-		}
+		}//while (<socket is not closed>)
 		
 		String ip = client.getSocket().getInetAddress().toString();
 		
@@ -89,10 +90,15 @@ public class Worker implements Runnable {
 			Class.forName(driverName);
 			Connection c = DriverManager.getConnection(dbURL);
 			Statement stmt = c.createStatement();
-			String query = "SELECT sender, recipient, payload, ts FROM chat WHERE (recipient = " + cl.userID + " OR sender = " + cl.userID + ") AND ts > " + ts + " ORDER BY ts;";
+			/* ts is the timestamp of the last communication with the server. It is increased by a client when the 
+			 * communication is done. 
+			 */
+			String query = "SELECT sender, recipient, payload, ts FROM chat WHERE (recipient = '" + cl.userID + 
+					"' OR sender = '" + cl.userID + "') AND ts > " + ts + " ORDER BY ts;";
 			System.out.println("Query: "+query);
 			ResultSet rs = stmt.executeQuery(query);
 			
+			/* For each message retrieved send a message to client */
 			while (rs.next()) {
 				System.out.println(rs.getString("payload"));
 				Message msg = new Message(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts"));
