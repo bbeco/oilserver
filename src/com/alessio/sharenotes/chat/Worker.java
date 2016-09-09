@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 
 public class Worker implements Runnable {
@@ -44,19 +45,21 @@ public class Worker implements Runnable {
 			} else if (message.query != null) {
 				
 				/* performing a search */
-				boolean found = false;
 				Message reply = new Message();
 				for (Client c : list) {
 					if (c.name.toUpperCase().contains(message.query.toUpperCase())) {
-						found = true;
-						reply.query = c.userID;
-						client.send(reply.toJSONString());
+						if (reply.result == null) {
+							reply.result = new ArrayList<Message.User>();
+						}
+						reply.result.add(new Message.User(c.name, c.userID));
+						reply.resultSize++;
 					}
 				}
-				if (!found) {
-					reply.query = "NOT_FOUND";
-					client.send(reply.toJSONString());
+				System.out.println("Found " + reply.resultSize + " results:");
+				for (Message.User u : reply.result) {
+					System.out.println(u.toString());
 				}
+				client.send(reply.toJSONString());
 				
 			} else if (!message.recipient.isEmpty()) {
 				/* Delivering a new message */
