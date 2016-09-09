@@ -10,6 +10,7 @@ import java.net.Socket;
 public class Client {
     private final Socket socket;
 	public String userID = "";
+	public String name = "";
     
 	public Client (Socket socket) {
 		this.socket = socket;

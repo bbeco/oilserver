@@ -38,8 +38,28 @@ public class Worker implements Runnable {
 			if (message.registration != null) {
 				/* If client has just signed in, send all messages not received yet */
 				client.userID = message.registration;
+				client.name = message.name;
+				logConnectedClients();
 				sendUnreadMessages(client,message.ts);
+			} else if (message.query != null) {
+				
+				/* performing a search */
+				boolean found = false;
+				Message reply = new Message();
+				for (Client c : list) {
+					if (c.name.toUpperCase().contains(message.query.toUpperCase())) {
+						found = true;
+						reply.query = c.userID;
+						client.send(reply.toJSONString());
+					}
+				}
+				if (!found) {
+					reply.query = "NOT_FOUND";
+					client.send(reply.toJSONString());
+				}
+				
 			} else if (!message.recipient.isEmpty()) {
+				/* Delivering a new message */
 				for (final Client dest: list) {
 					if (dest.userID.equals(message.recipient)) {
 						dest.send(s);
@@ -124,4 +144,15 @@ public class Worker implements Runnable {
         s = s.replaceAll("'", "''");
         return s;
     }
+	
+	/**
+	 * Debug function that prints all the client id currently connected to the server.
+	 */
+	private void logConnectedClients() {
+		for (Client c : list) {
+			System.out.println("UserID = " + c.userID + " Name = " + c.name);
+		}
+	}
+	
+	
 }

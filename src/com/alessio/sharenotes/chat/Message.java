@@ -4,21 +4,45 @@ import org.json.*;
 
 
 public class Message {
+	/**
+	 * This field is used by clients to request if a given username exists. The reply by the server is the same json
+	 * object and this field contains the userID (if username was found) or ERROR if not.
+	 */
+	public String query;
+	
+	/**
+	 * This field is the profile name for this client. It is not a unique value like userID.
+	 * Its value is sent during the registration phase and it is inserted by the worker thread.
+	 */
+	public String name;
+	
 	public String registration, sender, recipient, payload;
 	public long ts = 0;
 
+	public Message() {
+		query = name = registration = sender = recipient = payload = null;
+	}
+	
 	public Message(String s) {
 		JSONObject obj = new JSONObject(s);
 		
-		if (s.contains("registration")) {
-			this.registration = obj.getString("registration");
+		if (s.contains("query")) {
+			/* query message */
+			this.query = obj.getString("query");
 		} else {
-			this.sender = obj.getString("sender");
-			this.recipient = obj.getString("recipient");
-			this.payload = obj.getString("payload");
+			if (s.contains("registration")) {
+				/* registration message */
+				this.registration = obj.getString("registration");
+				this.name = obj.getString("name");
+			} else {
+				/* default message */
+				this.sender = obj.getString("sender");
+				this.recipient = obj.getString("recipient");
+				this.payload = obj.getString("payload");
+			}
+			
+			this.ts = Long.parseLong(obj.getString("ts"), 10);
 		}
-		
-		this.ts = Long.parseLong(obj.getString("ts"), 10);
 	}
 	
 	/* added to create a message on client side */
@@ -32,7 +56,11 @@ public class Message {
     public String toJSONString () {
         JSONObject obj = new JSONObject();
         try {
-        	// non controllo registration perchè non devo mai inviarlo
+        	// non controllo registration e name perchè non devo mai inviarli
+        	
+        	if (this.query != null) {
+                obj.put("query",this.query);
+            }
         	
             if (this.sender != null) {
                 obj.put("sender",this.sender);

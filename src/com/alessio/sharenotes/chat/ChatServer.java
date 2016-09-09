@@ -23,7 +23,7 @@ public class ChatServer {
 			this.socket = new ServerSocket(port);
 			this.socket.setReuseAddress(true);
 		} catch (IOException ex) {
-			System.err.println("Errore creazione del server. Terminazione");
+			System.err.println("Errore creazione del server. Terminazione\n" + ex.getMessage());
 			System.exit(1);
 		}
 	}
@@ -73,4 +73,6 @@ public class ChatServer {
 			}
 		}
 	}
+	
+	
 }
