@@ -55,20 +55,18 @@ public class Message {
 		if (s.contains("query")) {
 			/* query message */
 			this.query = obj.getString("query");
+		} else if (s.contains("registration")) {
+			/* registration message */
+			this.registration = obj.getString("registration");
+			this.name = obj.getString("name");
 		} else {
-			if (s.contains("registration")) {
-				/* registration message */
-				this.registration = obj.getString("registration");
-				this.name = obj.getString("name");
-			} else {
-				/* default message */
-				this.sender = obj.getString("sender");
-				this.recipient = obj.getString("recipient");
-				this.payload = obj.getString("payload");
-			}
-			
-			this.ts = Long.parseLong(obj.getString("ts"), 10);
+			/* default message */
+			this.sender = obj.getString("sender");
+			this.recipient = obj.getString("recipient");
+			this.payload = obj.getString("payload");
 		}
+			
+		this.ts = Long.parseLong(obj.getString("ts"), 10);
 	}
 	
 	/* added to create a message on client side */
@@ -89,11 +87,10 @@ public class Message {
         		for (Message.User u : result) {
         			JSONObject jo = new JSONObject();
         			jo.put("name", u.name);
-        			jo.put("UserId", u.userId);
+        			jo.put("userId", u.userId);
         			users.add(jo);
         		}
         		obj.put("result", users);
-        		obj.put("resultSize", Integer.toString(resultSize));
         	}
         	        	
         	if (this.query != null) {

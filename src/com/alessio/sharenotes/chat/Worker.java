@@ -1,5 +1,6 @@
 package com.alessio.sharenotes.chat;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -7,6 +8,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.json.JSONObject;
 
 public class Worker implements Runnable {
 	private static final String driverName = "org.sqlite.JDBC";
@@ -34,43 +37,80 @@ public class Worker implements Runnable {
 				break;
 			}
 			
-			Message message = new Message(s);
-			
-			if (message.registration != null) {
-				/* If client has just signed in, send all messages not received yet */
-				client.userID = message.registration;
-				client.name = message.name;
-				logConnectedClients();
-				sendUnreadMessages(client,message.ts);
-			} else if (message.query != null) {
-				
-				/* performing a search */
-				Message reply = new Message();
-				for (Client c : list) {
-					if (c.name.toUpperCase().contains(message.query.toUpperCase())) {
-						if (reply.result == null) {
-							reply.result = new ArrayList<Message.User>();
-						}
-						reply.result.add(new Message.User(c.name, c.userID));
-						reply.resultSize++;
-					}
-				}
-				System.out.println("Found " + reply.resultSize + " results:");
-				for (Message.User u : reply.result) {
-					System.out.println(u.toString());
-				}
-				client.send(reply.toJSONString());
-				
-			} else if (!message.recipient.isEmpty()) {
-				/* Delivering a new message */
+			//modifica da qui
+			JSONObject obj = new JSONObject(s);
+			int type = obj.getInt("type");
+			switch(type){
+			case MessageTypes.CHAT_MESSAGE:
+				ChatMessage m = new ChatMessage(s);
 				for (final Client dest: list) {
-					if (dest.userID.equals(message.recipient)) {
+					if (dest.userID.equals(m.recipient)) {
 						dest.send(s);
 					}
 				}
-				insertIntoDatabase(message);
-			} else {
-				System.out.println("Ricevuto JSON non valido :" + s);
+				insertIntoDatabase(m);
+				break;
+			case MessageTypes.REGISTRATION_REQUEST:
+				RegistrationRequest r = new RegistrationRequest(s);
+				client.userID = r.userId;
+				client.name = r.name;
+				sendUnreadMessages(client,r.ts);
+				break;
+			case MessageTypes.SEARCH_STATION_REQUEST:
+				SearchOilRequest sor = new SearchOilRequest(s);//contains user latitude and longitude to use in the query
+				try {
+					Class.forName(driverName);
+					Connection c = DriverManager.getConnection(dbURL);
+		            Statement stmt = c.createStatement();
+		            String query = "select latitude,longitude,oil,diesel,gpl from OILMAP";
+		            ResultSet rs = stmt.executeQuery(query);
+		            SearchOilResponse msg = new SearchOilResponse();
+		            while (rs.next()) {
+						msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+								Double.parseDouble(rs.getString("longitude")),
+								Double.parseDouble(rs.getString("oil")),
+								Double.parseDouble(rs.getString("diesel")),
+								Double.parseDouble(rs.getString("gpl"))));
+					}
+		            String json = msg.toJSONString();
+		            client.send(json);
+					Thread.sleep(100);
+		            stmt.close();
+		            c.close();
+		            client.getSocket().close();
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				break;
+			case MessageTypes.SEARCH_USER_REQUEST:
+				SearchUserRequest sur = new SearchUserRequest(s);
+				SearchUserResponse rsp = new SearchUserResponse();
+				for (Client c : list) {
+					if (c.name.toUpperCase().contains(sur.name.toUpperCase())) {
+							rsp.names.add(new SearchUserResponse.User(c.name, c.userID));
+					}
+				}
+				System.out.println("Found " + rsp.names.size() + " results:");
+				if (rsp.names.size() > 0) {
+					for (SearchUserResponse.User u : rsp.names) {
+						System.out.println(u.toString());
+					}
+				}
+				client.send(rsp.toJSONString());
+				break;
+				default:
+					System.out.println("Ricevuto JSON non valido :" + s);
+				
 			}
 		}//while (<socket is not closed>)
 		
@@ -89,8 +129,8 @@ public class Worker implements Runnable {
 		System.out.println("Fine thread del client: " + ip);
 	}
 
-	private void insertIntoDatabase(Message m) {
-		System.out.println("Inzio insetIntoDatabase");
+	private void insertIntoDatabase(ChatMessage m) {
+		System.out.println("Inzio insertIntoDatabase");
         try {
             Class.forName(driverName);
             Connection c = DriverManager.getConnection(dbURL);
@@ -104,7 +144,7 @@ public class Worker implements Runnable {
             ex.printStackTrace();
         }
         
-        System.out.println("Fine insetIntoDatabase");
+        System.out.println("Fine insertIntoDatabase");
 	}
 
 	private void sendUnreadMessages(Client cl, long ts) {	
@@ -120,17 +160,16 @@ public class Worker implements Runnable {
 					"' OR sender = '" + cl.userID + "') AND ts > " + ts + " ORDER BY ts;";
 			System.out.println("Query: "+query);
 			ResultSet rs = stmt.executeQuery(query);
-			
+			RegistrationResponse resp = new RegistrationResponse();
 			/* For each message retrieved send a message to client */
 			while (rs.next()) {
 				System.out.println(rs.getString("payload"));
-				Message msg = new Message(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts"));
-				String json = msg.toJSONString();
-				System.out.println("Invio: " + json);				
-				cl.send(json);
-				Thread.sleep(100);
+				resp.messages.add(new ChatMessage(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts")));
 			}
-			
+			String json = resp.toJSONString();
+			System.out.println("Invio: " + json);				
+			cl.send(json);
+			Thread.sleep(100);
 			stmt.close();
 			c.close();
 		} catch (SQLException | ClassNotFoundException ex) {

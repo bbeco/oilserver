@@ -24,7 +24,7 @@ public class Client {
      * This is used to submit a message to this client object
      */
     public boolean send(String s) {
-    	System.out.println("send(): " + s);
+    	//System.out.println("send(): " + s);
     	byte[] msg = s.getBytes();
     	
         try {
