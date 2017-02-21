@@ -77,7 +77,7 @@ public class Worker implements Runnable {
 					Thread.sleep(100);
 		            stmt.close();
 		            c.close();
-		            client.getSocket().close();
+		            //client.getSocket().close();
 				} catch (ClassNotFoundException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
@@ -85,9 +85,6 @@ public class Worker implements Runnable {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (IOException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
@@ -108,8 +105,28 @@ public class Worker implements Runnable {
 				}
 				client.send(rsp.toJSONString());
 				break;
-				default:
-					System.out.println("Ricevuto JSON non valido :" + s);
+				
+			case MessageTypes.MODIFY_REQUEST:
+				ModifyRequest mreq = new ModifyRequest(s);
+				try {
+					Class.forName(driverName);
+					Connection c = DriverManager.getConnection(dbURL);
+		            Statement stmt = c.createStatement();
+		            String query = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
+		            ResultSet rs = stmt.executeQuery(query);
+		            stmt.close();
+		            c.close();
+				} catch (ClassNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (SQLException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				break;
+				
+			default:
+				System.out.println("Ricevuto JSON non valido :" + s);
 				
 			}
 		}//while (<socket is not closed>)
@@ -161,7 +178,7 @@ public class Worker implements Runnable {
 			System.out.println("Query: "+query);
 			ResultSet rs = stmt.executeQuery(query);
 			RegistrationResponse resp = new RegistrationResponse();
-			/* For each message retrieved send a message to client */
+			/* Merge all the messages found in a single response */
 			while (rs.next()) {
 				System.out.println(rs.getString("payload"));
 				resp.messages.add(new ChatMessage(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts")));
@@ -175,7 +192,6 @@ public class Worker implements Runnable {
 		} catch (SQLException | ClassNotFoundException ex) {
 			ex.printStackTrace();
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 		System.out.println("Fine sendUnreadMessages()");
