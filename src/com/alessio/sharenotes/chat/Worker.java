@@ -8,12 +8,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.json.JSONObject;
 
 public class Worker implements Runnable {
 	private static final String driverName = "org.sqlite.JDBC";
 	private static final String dbURL = "jdbc:sqlite:Database/Chat.db";
+	private static final String dbOil = "jdbc:sqlite:Database/mydb.db";
 	
 	private final List<Client> list;
 	private final Client client;
@@ -28,106 +30,110 @@ public class Worker implements Runnable {
 		System.out.println("Inizio worker del client: " + client.getSocket().getInetAddress().toString());
 		
 		while(!client.getSocket().isClosed()) {
-			String s = client.receive();
-			System.out.println("Ricevuto messaggio: " + s);
-			
-			if (s == null) {
+			String res = client.receive();
+			if (res == null) {
 				// Socket chiuso
 				System.out.println("Socket chiuso: " + client.getSocket().getInetAddress().toString());
 				break;
 			}
 			
-			//modifica da qui
-			JSONObject obj = new JSONObject(s);
-			int type = obj.getInt("type");
-			switch(type){
-			case MessageTypes.CHAT_MESSAGE:
-				ChatMessage m = new ChatMessage(s);
-				for (final Client dest: list) {
-					if (dest.userID.equals(m.recipient)) {
-						dest.send(s);
-					}
-				}
-				insertIntoDatabase(m);
-				break;
-			case MessageTypes.REGISTRATION_REQUEST:
-				RegistrationRequest r = new RegistrationRequest(s);
-				client.userID = r.userId;
-				client.name = r.name;
-				sendUnreadMessages(client,r.ts);
-				break;
-			case MessageTypes.SEARCH_STATION_REQUEST:
-				SearchOilRequest sor = new SearchOilRequest(s);//contains user latitude and longitude to use in the query
-				try {
-					Class.forName(driverName);
-					Connection c = DriverManager.getConnection(dbURL);
-		            Statement stmt = c.createStatement();
-		            String query = "select latitude,longitude,oil,diesel,gpl from OILMAP";
-		            ResultSet rs = stmt.executeQuery(query);
-		            SearchOilResponse msg = new SearchOilResponse();
-		            while (rs.next()) {
-						msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
-								Double.parseDouble(rs.getString("longitude")),
-								Double.parseDouble(rs.getString("oil")),
-								Double.parseDouble(rs.getString("diesel")),
-								Double.parseDouble(rs.getString("gpl"))));
-					}
-		            String json = msg.toJSONString();
-		            client.send(json);
-					Thread.sleep(100);
-		            stmt.close();
-		            c.close();
-		            //client.getSocket().close();
-				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				break;
-			case MessageTypes.SEARCH_USER_REQUEST:
-				SearchUserRequest sur = new SearchUserRequest(s);
-				SearchUserResponse rsp = new SearchUserResponse();
-				for (Client c : list) {
-					if (c.name.toUpperCase().contains(sur.name.toUpperCase())) {
-							rsp.names.add(new SearchUserResponse.User(c.name, c.userID));
-					}
-				}
-				System.out.println("Found " + rsp.names.size() + " results:");
-				if (rsp.names.size() > 0) {
-					for (SearchUserResponse.User u : rsp.names) {
-						System.out.println(u.toString());
-					}
-				}
-				client.send(rsp.toJSONString());
-				break;
+			String[] parts = res.split("(?=" + Pattern.quote("{") + ")");
+			for (String s : parts) {
 				
-			case MessageTypes.MODIFY_REQUEST:
-				ModifyRequest mreq = new ModifyRequest(s);
-				try {
-					Class.forName(driverName);
-					Connection c = DriverManager.getConnection(dbURL);
-		            Statement stmt = c.createStatement();
-		            String query = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
-		            ResultSet rs = stmt.executeQuery(query);
-		            stmt.close();
-		            c.close();
-				} catch (ClassNotFoundException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
+				System.out.println("Ricevuto messaggio: " + s);
+				
+				//modifica da qui
+				JSONObject obj = new JSONObject(s);
+				int type = obj.getInt("type");
+				switch(type){
+				case MessageTypes.CHAT_MESSAGE:
+					ChatMessage m = new ChatMessage(s);
+					for (final Client dest: list) {
+						if (dest.userID.equals(m.recipient)) {
+							dest.send(s);
+						}
+					}
+					insertIntoDatabase(m);
+					break;
+				case MessageTypes.REGISTRATION_REQUEST:
+					RegistrationRequest r = new RegistrationRequest(s);
+					client.userID = r.userId;
+					client.name = r.name;
+					sendUnreadMessages(client,r.ts);
+					break;
+				case MessageTypes.SEARCH_STATION_REQUEST:
+					SearchOilRequest sor = new SearchOilRequest(s);//contains user latitude and longitude to use in the query
+					try {
+						Class.forName(driverName);
+						Connection c = DriverManager.getConnection(dbOil);
+			            Statement stmt = c.createStatement();
+			            String query = "select latitude,longitude,oil,diesel,gpl from OILMAP";
+			            ResultSet rs = stmt.executeQuery(query);
+			            SearchOilResponse msg = new SearchOilResponse();
+			            while (rs.next()) {
+							msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+									Double.parseDouble(rs.getString("longitude")),
+									Double.parseDouble(rs.getString("oil")),
+									Double.parseDouble(rs.getString("diesel")),
+									Double.parseDouble(rs.getString("gpl"))));
+						}
+			            String json = msg.toJSONString();
+			            client.send(json);
+						Thread.sleep(100);
+			            stmt.close();
+			            c.close();
+			            //client.getSocket().close();
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case MessageTypes.SEARCH_USER_REQUEST:
+					SearchUserRequest sur = new SearchUserRequest(s);
+					SearchUserResponse rsp = new SearchUserResponse();
+					for (Client c : list) {
+						if (c.name.toUpperCase().contains(sur.name.toUpperCase())) {
+								rsp.names.add(new SearchUserResponse.User(c.name, c.userID));
+						}
+					}
+					System.out.println("Found " + rsp.names.size() + " results:");
+					if (rsp.names.size() > 0) {
+						for (SearchUserResponse.User u : rsp.names) {
+							System.out.println(u.toString());
+						}
+					}
+					client.send(rsp.toJSONString());
+					break;
+					
+				case MessageTypes.MODIFY_REQUEST:
+					ModifyRequest mreq = new ModifyRequest(s);
+					try {
+						Class.forName(driverName);
+						Connection c = DriverManager.getConnection(dbOil);
+			            Statement stmt = c.createStatement();
+			            String query = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
+			            ResultSet rs = stmt.executeQuery(query);
+			            stmt.close();
+			            c.close();
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+					
+				default:
+					System.out.println("Ricevuto JSON non valido :" + s);
+					
 				}
-				break;
-				
-			default:
-				System.out.println("Ricevuto JSON non valido :" + s);
-				
 			}
 		}//while (<socket is not closed>)
 		
