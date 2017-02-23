@@ -48,6 +48,7 @@ public class Worker implements Runnable {
 				switch(type){
 				case MessageTypes.CHAT_MESSAGE:
 					ChatMessage m = new ChatMessage(s);
+					System.out.println("Ricevuto messaggio:\n\t" + m);
 					for (final Client dest: list) {
 						if (dest.userID.equals(m.recipient)) {
 							dest.send(s);
@@ -152,6 +153,24 @@ public class Worker implements Runnable {
 		System.out.println("Fine thread del client: " + ip);
 	}
 
+	private void insertIntoDatabase(RegistrationRequest r) {
+		String query = "INSERT INTO email(emailAddress,name) " +
+						"SELECT * FROM (SELECT \"" + r.userId + "\", \"" + r.name + "\") AS tmp " +
+						"WHERE NOT EXISTS ( " +
+							"SELECT emailAddress FROM email WHERE emailAddress= \"" + r.userId + "\");";
+		try{
+			Class.forName(driverName);
+			Connection c = DriverManager.getConnection(dbURL);
+			Statement stmt = c.createStatement();
+			stmt.executeUpdate(query);
+			stmt.close();
+			c.close();
+		} catch (SQLException | ClassNotFoundException ex) {
+			ex.printStackTrace();
+		}
+		System.out.println("Fine insertIntoDatabase");
+	}
+	
 	private void insertIntoDatabase(ChatMessage m) {
 		System.out.println("Inzio insertIntoDatabase");
         try {
@@ -168,6 +187,33 @@ public class Worker implements Runnable {
         }
         
         System.out.println("Fine insertIntoDatabase");
+	}
+	
+	private void sendSearchUserResponse(Client cl, String name) {
+		System.out.println("Inzio sendSearchUserResponse()");
+		try {
+			Class.forName(driverName);
+			Connection c = DriverManager.getConnection(dbURL);
+			Statement stmt = c.createStatement();
+			String query = "SELECT * FROM email WHERE name LIKE '%" + name + "%';";
+			ResultSet rs = stmt.executeQuery(query);
+			SearchUserResponse resp = new SearchUserResponse();
+			/* Merge all the messages found in a single response */
+			while (rs.next()) {
+				resp.names.add(new SearchUserResponse.User(rs.getString("name"), rs.getString("emailAddress")));
+			}
+			String json = resp.toJSONString();
+			System.out.println("Invio: " + json);				
+			cl.send(json);
+			Thread.sleep(100);
+			stmt.close();
+			c.close();
+		} catch (SQLException | ClassNotFoundException ex) {
+			ex.printStackTrace();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		System.out.println("Fine sendSearchUserResponse()");
 	}
 
 	private void sendUnreadMessages(Client cl, long ts) {	
