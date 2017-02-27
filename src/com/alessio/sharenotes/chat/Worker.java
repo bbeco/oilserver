@@ -116,10 +116,19 @@ public class Worker implements Runnable {
 					ModifyRequest mreq = new ModifyRequest(s);
 					try {
 						Class.forName(driverName);
-						Connection c = DriverManager.getConnection(dbOil);
+						Connection c = DriverManager.getConnection(dbURL);
 			            Statement stmt = c.createStatement();
-			            String query = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
+			            String query = "select * from OILMAP where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
 			            ResultSet rs = stmt.executeQuery(query);
+			            if(!rs.next()){
+			            	System.out.println("Inserting new oil station");
+			            	String query1 = "insert into OILMAP(latitude,longitude,oil,diesel,gpl) values ("+mreq.latitude+","+mreq.longitude+","+mreq.oil+","+mreq.diesel+","+mreq.gpl+")";
+			            	stmt.executeUpdate(query1);
+			            } else {
+			            	System.out.println("Executing update on an oil station");
+			            	String query2 = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
+				            stmt.executeUpdate(query2);
+			            }
 			            stmt.close();
 			            c.close();
 					} catch (ClassNotFoundException e) {
@@ -130,7 +139,6 @@ public class Worker implements Runnable {
 						e.printStackTrace();
 					}
 					break;
-					
 				default:
 					System.out.println("Ricevuto JSON non valido :" + s);
 					
