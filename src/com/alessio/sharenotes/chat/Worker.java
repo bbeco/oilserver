@@ -116,7 +116,7 @@ public class Worker implements Runnable {
 					ModifyRequest mreq = new ModifyRequest(s);
 					try {
 						Class.forName(driverName);
-						Connection c = DriverManager.getConnection(dbURL);
+						Connection c = DriverManager.getConnection(dbOil);
 			            Statement stmt = c.createStatement();
 			            String query = "select * from OILMAP where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
 			            ResultSet rs = stmt.executeQuery(query);
@@ -135,6 +135,51 @@ public class Worker implements Runnable {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					break;
+				case MessageTypes.COMMUTE_REQUEST:
+					System.out.println("ricevuto messaggio CommuteRequest");
+					CommuteRequest creq = new CommuteRequest(s);
+					try {
+						Class.forName(driverName);
+						Connection c = DriverManager.getConnection(dbOil);
+				        Statement stmt = c.createStatement(); 
+						if (creq.latHome != null && creq.email != null){
+							//new user, insert the information in the database
+				            String query = "insert into COMMUTE(email,latitudeHome,longitudeHome,latitudeWork,longitudeWork) values("+"'"+creq.email+"',"+creq.latHome+","+creq.longHome+","+creq.latWork+","+creq.longWork+")";
+				            System.out.println(query);
+				            stmt.executeUpdate(query);
+						} else {
+							String query = "select * from COMMUTE where email="+"'"+creq.email+"'";
+							ResultSet rs = stmt.executeQuery(query);
+							if(!rs.next()){
+								//send an empty commute request (except the mail)
+								String json = creq.toJSONString();//the same one received
+					            client.send(json);
+								Thread.sleep(100);
+							} else {
+								//found a row matching the request, send all the information (home,work)
+								CommuteRequest comResp = new CommuteRequest(Double.parseDouble(rs.getString("latitudeHome")),
+																			Double.parseDouble(rs.getString("longitudeHome")),
+																			Double.parseDouble(rs.getString("latitudeWork")),
+																			Double.parseDouble(rs.getString("longitudeWork")),
+																			rs.getString("email"));
+								String json = comResp.toJSONString();
+								client.send(json);
+								Thread.sleep(100);
+							}
+						}
+						stmt.close();
+			            c.close();
+					} catch (ClassNotFoundException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
