@@ -63,6 +63,7 @@ public class Worker implements Runnable {
 					sendUnreadMessages(client,r.ts);
 					break;
 				case MessageTypes.SEARCH_STATION_REQUEST:
+					System.out.println("sending oil stations");
 					SearchOilRequest sor = new SearchOilRequest(s);//contains user latitude and longitude to use in the query
 					try {
 						Class.forName(driverName);
@@ -168,6 +169,23 @@ public class Worker implements Runnable {
 																			rs.getString("email"));
 								String json = comResp.toJSONString();
 								client.send(json);
+								Thread.sleep(100);
+								//Double distance = Math.sqrt(Math.pow(creq.latHome -creq.latWork, 2) + Math.pow(creq.longHome-creq.longWork, 2));
+								
+								query = "select latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(comResp.latHome,comResp.latWork)+" and latitude <="+Math.max(comResp.latWork,comResp.latHome)+" and longitude>="+Math.min(comResp.longHome,comResp.longWork)+" and longitude <="+Math.max(comResp.longWork,comResp.longHome);
+					            rs = stmt.executeQuery(query);
+					            SearchOilResponse msg = new SearchOilResponse();
+					            while (rs.next()) {
+					            	System.out.println("ENTRO QUI");
+									msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+											Double.parseDouble(rs.getString("longitude")),
+											Double.parseDouble(rs.getString("oil")),
+											Double.parseDouble(rs.getString("diesel")),
+											Double.parseDouble(rs.getString("gpl"))));
+								}
+					            json = msg.toJSONString();
+					            System.out.println("invio oil stations nella commute");
+					            client.send(json);
 								Thread.sleep(100);
 							}
 						}
