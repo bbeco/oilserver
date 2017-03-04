@@ -278,15 +278,14 @@ public class Worker implements Runnable {
 			/* ts is the timestamp of the last communication with the server. It is increased by a client when the 
 			 * communication is done. 
 			 */
-			String query = "SELECT sender, recipient, payload, ts FROM chat WHERE (recipient = '" + cl.userID + 
-					"' OR sender = '" + cl.userID + "') AND ts > " + ts + " ORDER BY ts;";
+			String query = "SELECT sender, a.name as sender_name, recipient, b.name as recipient_name, payload, ts FROM chat JOIN email a ON sender = a.emailAddress JOIN email b ON b.emailAddress = recipient WHERE (recipient = '" + cl.userID + "' OR sender = '" + cl.userID + "') AND ts > " + ts + " ORDER BY ts;";
 			System.out.println("Query: "+query);
 			ResultSet rs = stmt.executeQuery(query);
 			RegistrationResponse resp = new RegistrationResponse();
 			/* Merge all the messages found in a single response */
 			while (rs.next()) {
 				System.out.println(rs.getString("payload"));
-				resp.messages.add(new ChatMessage(rs.getString("sender"),rs.getString("recipient"),replaceShit(rs.getString("payload")),rs.getLong("ts")));
+				resp.messages.add(new ChatMessage(rs.getString("sender"), rs.getString("sender_name"),rs.getString("recipient"), rs.getString("recipient_name"),replaceShit(rs.getString("payload")),rs.getLong("ts")));
 			}
 			String json = resp.toJSONString();
 			System.out.println("Invio: " + json);				

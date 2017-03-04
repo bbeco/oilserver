@@ -23,7 +23,9 @@ public class RegistrationResponse {
 		for (int i = 0; i < array.length(); i++) {
 			JSONObject jsonMessage = array.getJSONObject(i);
 			messages.add(new ChatMessage(jsonMessage.getString("sender"),
+					jsonMessage.getString("senderName"),
 					jsonMessage.getString("recipient"),
+					jsonMessage.getString("recipientName"),
 					jsonMessage.getString("payload"),
 					Long.parseLong(jsonMessage.getString("ts"))));
 		}
@@ -39,7 +41,9 @@ public class RegistrationResponse {
 		for (ChatMessage m : messages) {
 			JSONObject jo = new JSONObject();
 			jo.put("sender", m.sender);
+			jo.put("senderName", m.senderName);
 			jo.put("recipient", m.recipient);
+			jo.put("recipientName", m.recipientName);
 			jo.put("payload", m.payload);
 			jo.put("ts", Long.toString(m.ts));
 			jsonCollection.add(jo);
