@@ -176,7 +176,6 @@ public class Worker implements Runnable {
 					            rs = stmt.executeQuery(query);
 					            SearchOilResponse msg = new SearchOilResponse();
 					            while (rs.next()) {
-					            	System.out.println("ENTRO QUI");
 									msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
 											Double.parseDouble(rs.getString("longitude")),
 											Double.parseDouble(rs.getString("oil")),
