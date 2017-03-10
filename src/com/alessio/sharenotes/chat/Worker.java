@@ -98,19 +98,7 @@ public class Worker implements Runnable {
 					break;
 				case MessageTypes.SEARCH_USER_REQUEST:
 					SearchUserRequest sur = new SearchUserRequest(s);
-					SearchUserResponse rsp = new SearchUserResponse();
-					for (Client c : list) {
-						if (c.name.toUpperCase().contains(sur.name.toUpperCase())) {
-								rsp.names.add(new SearchUserResponse.User(c.name, c.userID));
-						}
-					}
-					System.out.println("Found " + rsp.names.size() + " results:");
-					if (rsp.names.size() > 0) {
-						for (SearchUserResponse.User u : rsp.names) {
-							System.out.println(u.toString());
-						}
-					}
-					client.send(rsp.toJSONString());
+					sendSearchUserResponse(client, sur.name);
 					break;
 					
 				case MessageTypes.MODIFY_REQUEST:
@@ -259,13 +247,18 @@ public class Worker implements Runnable {
         System.out.println("Fine insertIntoDatabase");
 	}
 	
+	/**
+	 * 
+	 * @param cl response recipient
+	 * @param name The name we are looking for
+	 */
 	private void sendSearchUserResponse(Client cl, String name) {
 		System.out.println("Inzio sendSearchUserResponse()");
 		try {
 			Class.forName(driverName);
 			Connection c = DriverManager.getConnection(dbURL);
 			Statement stmt = c.createStatement();
-			String query = "SELECT * FROM email WHERE name LIKE '%" + name + "%';";
+			String query = "SELECT * FROM email WHERE name LIKE '%" + name + "%' AND emailAddress <> '" + cl.userID + "';";
 			ResultSet rs = stmt.executeQuery(query);
 			SearchUserResponse resp = new SearchUserResponse();
 			/* Merge all the messages found in a single response */
