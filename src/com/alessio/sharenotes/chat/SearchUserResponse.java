@@ -44,6 +44,7 @@ public class SearchUserResponse {
 			jo.put("userId", u.userId);
 			values.add(jo);
 		}
+		obj.put("names", values);
 		return obj.toString();
 	}
 
