@@ -80,6 +80,7 @@ public class Worker implements Runnable {
 									Double.parseDouble(rs.getString("gpl"))));
 						}
 			            String json = msg.toJSONString();
+			            System.out.println(json);
 			            client.send(json);
 						Thread.sleep(100);
 			            stmt.close();
@@ -147,7 +148,11 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 				        Statement stmt = c.createStatement(); 
-						if (creq.latHome != null && creq.email != null){
+				        if(!creq.valid){
+				        	//delete information from server
+				        	String query = "delete from COMMUTE where email="+"'"+creq.email+"'";
+				        	stmt.executeUpdate(query);
+				        } else if (creq.latHome != null && creq.email != null){
 							//new user, insert the information in the database
 				            String query = "insert into COMMUTE(email,latitudeHome,longitudeHome,latitudeWork,longitudeWork) values("+"'"+creq.email+"',"+creq.latHome+","+creq.longHome+","+creq.latWork+","+creq.longWork+")";
 				            System.out.println(query);
@@ -166,7 +171,8 @@ public class Worker implements Runnable {
 																			Double.parseDouble(rs.getString("longitudeHome")),
 																			Double.parseDouble(rs.getString("latitudeWork")),
 																			Double.parseDouble(rs.getString("longitudeWork")),
-																			rs.getString("email"));
+																			rs.getString("email"),
+																			true);
 								String json = comResp.toJSONString();
 								client.send(json);
 								Thread.sleep(100);
