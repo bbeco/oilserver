@@ -57,6 +57,7 @@ public class Worker implements Runnable {
 					insertIntoDatabase(m);
 					break;
 				case MessageTypes.REGISTRATION_REQUEST:
+					System.out.println("Registrationi received");
 					RegistrationRequest r = new RegistrationRequest(s);
 					client.userID = r.userId;
 					client.name = r.name;
@@ -79,6 +80,15 @@ public class Worker implements Runnable {
 									Double.parseDouble(rs.getString("diesel")),
 									Double.parseDouble(rs.getString("gpl"))));
 						}
+			            /* Removing oil stations that are farer than 15 Km */
+			            int i = 0;
+			            while(i < msg.oils.size()){
+		                    if(measure(sor.latitude,sor.longitude,msg.oils.get(i).latitude,msg.oils.get(i).longitude) > 15){
+		                      msg.oils.remove(i);
+		                    } else {
+		                      i++;
+		                    }
+		                  }
 			            String json = msg.toJSONString();
 			            client.send(json);
 						Thread.sleep(100);
@@ -98,7 +108,7 @@ public class Worker implements Runnable {
 					break;
 				case MessageTypes.SEARCH_USER_REQUEST:
 					SearchUserRequest sur = new SearchUserRequest(s);
-					sendSearchUserResponse(client, sur.name);
+					sendSearchUserResponse(client, sur);
 					break;
 					
 				case MessageTypes.MODIFY_REQUEST:
@@ -135,7 +145,10 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 				        Statement stmt = c.createStatement(); 
-						if (creq.latHome != null && creq.email != null){
+				        if (!creq.valid) {
+				        	String query = "DELETE FROM COMMUTE WHERE email = '" + creq.email + "'";
+				        	stmt.executeUpdate(query);
+				        } else if (creq.latHome != null && creq.email != null){
 							//new user, insert the information in the database
 				            String query = "insert into COMMUTE(email,latitudeHome,longitudeHome,latitudeWork,longitudeWork) values("+"'"+creq.email+"',"+creq.latHome+","+creq.longHome+","+creq.latWork+","+creq.longWork+")";
 				            System.out.println(query);
@@ -154,7 +167,8 @@ public class Worker implements Runnable {
 																			Double.parseDouble(rs.getString("longitudeHome")),
 																			Double.parseDouble(rs.getString("latitudeWork")),
 																			Double.parseDouble(rs.getString("longitudeWork")),
-																			rs.getString("email"));
+																			rs.getString("email"),
+																			true);
 								String json = comResp.toJSONString();
 								client.send(json);
 								Thread.sleep(100);
@@ -252,13 +266,13 @@ public class Worker implements Runnable {
 	 * @param cl response recipient
 	 * @param name The name we are looking for
 	 */
-	private void sendSearchUserResponse(Client cl, String name) {
+	private void sendSearchUserResponse(Client cl, SearchUserRequest sur) {
 		System.out.println("Inzio sendSearchUserResponse()");
 		try {
 			Class.forName(driverName);
 			Connection c = DriverManager.getConnection(dbURL);
 			Statement stmt = c.createStatement();
-			String query = "SELECT * FROM email WHERE name LIKE '%" + name + "%' AND emailAddress <> '" + cl.userID + "';";
+			String query = "SELECT * FROM email WHERE name LIKE '%" + sur.name + "%' AND emailAddress <> '" + sur.sender + "';";
 			ResultSet rs = stmt.executeQuery(query);
 			SearchUserResponse resp = new SearchUserResponse();
 			/* Merge all the messages found in a single response */
@@ -325,6 +339,18 @@ public class Worker implements Runnable {
 			System.out.println("UserID = " + c.userID + " Name = " + c.name);
 		}
 	}
+	
+	private double measure(double lat1, double lon1, double lat2, double lon2) {
+        final double R = 6372.8;
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        lat1 = Math.toRadians(lat1);
+        lat2 = Math.toRadians(lat2);
+
+        double a = Math.pow(Math.sin(dLat / 2),2) + Math.pow(Math.sin(dLon / 2),2) * Math.cos(lat1) * Math.cos(lat2);
+        double c = 2 * Math.asin(Math.sqrt(a));
+        return R * c;
+    }
 	
 	
 }
