@@ -61,6 +61,7 @@ public class Worker implements Runnable {
 					RegistrationRequest r = new RegistrationRequest(s);
 					client.userID = r.userId;
 					client.name = r.name;
+					insertIntoDatabase(r);
 					sendUnreadMessages(client,r.ts);
 					break;
 				case MessageTypes.SEARCH_STATION_REQUEST:
