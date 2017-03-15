@@ -14,12 +14,12 @@ public class CommuteRequest {
     boolean valid;
 
     public CommuteRequest (Double latHome, Double longHome, Double latWork, Double longWork, String email, boolean valid) {
-    	this.valid = valid;
         this.latHome = latHome;
         this.longHome = longHome;
         this.latWork = latWork;
         this.longWork = longWork;
         this.email = email;
+        this.valid = valid;
     }
     public CommuteRequest (String s) throws JSONException {
         JSONObject obj = new JSONObject(s);
@@ -31,7 +31,6 @@ public class CommuteRequest {
         this.valid = obj.getBoolean("valid");
     }
 
-
     public String toJSONString() throws JSONException {
         JSONObject obj = new JSONObject();
         obj.put("type", Integer.toString(type));
@@ -41,7 +40,7 @@ public class CommuteRequest {
         obj.put("latWork",latWork==null?"":Double.toString(latWork));
         obj.put("longWork",longWork==null?"":Double.toString(longWork));
         obj.put("email",email);
+        obj.put("valid",valid);
         return obj.toString();
     }
 }
-

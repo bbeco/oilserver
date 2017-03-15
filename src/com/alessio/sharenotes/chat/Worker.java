@@ -90,6 +90,7 @@ public class Worker implements Runnable {
 		                    }
 		                  }
 			            String json = msg.toJSONString();
+			            System.out.println(json);
 			            client.send(json);
 						Thread.sleep(100);
 			            stmt.close();
@@ -145,8 +146,10 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 				        Statement stmt = c.createStatement(); 
-				        if (!creq.valid) {
-				        	String query = "DELETE FROM COMMUTE WHERE email = '" + creq.email + "'";
+
+				        if(!creq.valid){
+				        	//delete information from server
+				        	String query = "delete from COMMUTE where email="+"'"+creq.email+"'";
 				        	stmt.executeUpdate(query);
 				        } else if (creq.latHome != null && creq.email != null){
 							//new user, insert the information in the database
