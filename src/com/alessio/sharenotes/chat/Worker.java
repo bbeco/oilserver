@@ -79,16 +79,25 @@ public class Worker implements Runnable {
 									Double.parseDouble(rs.getString("diesel")),
 									Double.parseDouble(rs.getString("gpl"))));
 						}
-			            /* Removing oil stations that are farer than 15 Km */
+			            /* Removing oil stations that are farer than max distance requested */
 			            int i = 0;
+			            String json;
+			            SearchOilResponse rsp = new SearchOilResponse();
 			            while(i < msg.oils.size()){
-		                    if(measure(sor.latitude,sor.longitude,msg.oils.get(i).latitude,msg.oils.get(i).longitude) > 15){
+		                    if(measure(sor.latitude,sor.longitude,msg.oils.get(i).latitude,msg.oils.get(i).longitude) > sor.km){
 		                      msg.oils.remove(i);
 		                    } else {
-		                      i++;
+		                    	rsp.oils.add(msg.oils.get(i));
+			            		if(i%6 == 5){
+			            			json = rsp.toJSONString();
+			            			rsp.oils.clear();
+			            			client.send(json);
+			            			Thread.sleep(50);
+			            		}
+			            		i++;
 		                    }
 		                  }
-			            String json = msg.toJSONString();
+			            json = msg.toJSONString();
 			            System.out.println(json);
 			            client.send(json);
 						Thread.sleep(100);
@@ -145,7 +154,7 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 				        Statement stmt = c.createStatement(); 
-
+				        ResultSet rs;
 				        if(!creq.valid){
 				        	//delete information from server
 				        	String query = "delete from COMMUTE where email="+"'"+creq.email+"'";
@@ -155,9 +164,24 @@ public class Worker implements Runnable {
 				            String query = "insert into COMMUTE(email,latitudeHome,longitudeHome,latitudeWork,longitudeWork) values("+"'"+creq.email+"',"+creq.latHome+","+creq.longHome+","+creq.latWork+","+creq.longWork+")";
 				            System.out.println(query);
 				            stmt.executeUpdate(query);
+				            Thread.sleep(100);
+							query = "select latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(creq.latHome,creq.latWork)+" and latitude <="+Math.max(creq.latWork,creq.latHome)+" and longitude>="+Math.min(creq.longHome,creq.longWork)+" and longitude <="+Math.max(creq.longWork,creq.longHome);
+				            rs = stmt.executeQuery(query);
+				            SearchOilResponse msg = new SearchOilResponse();
+				            while (rs.next()) {
+								msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+										Double.parseDouble(rs.getString("longitude")),
+										Double.parseDouble(rs.getString("oil")),
+										Double.parseDouble(rs.getString("diesel")),
+										Double.parseDouble(rs.getString("gpl"))));
+							}
+				            String json = msg.toJSONString();
+				            System.out.println("invio oil stations nella commute");
+				            client.send(json);
+							Thread.sleep(100);
 						} else {
 							String query = "select * from COMMUTE where email="+"'"+creq.email+"'";
-							ResultSet rs = stmt.executeQuery(query);
+							rs = stmt.executeQuery(query);
 							if(!rs.next()){
 								//send an empty commute request (except the mail)
 								String json = creq.toJSONString();//the same one received
@@ -174,7 +198,6 @@ public class Worker implements Runnable {
 								String json = comResp.toJSONString();
 								client.send(json);
 								Thread.sleep(100);
-								//Double distance = Math.sqrt(Math.pow(creq.latHome -creq.latWork, 2) + Math.pow(creq.longHome-creq.longWork, 2));
 								
 								query = "select latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(comResp.latHome,comResp.latWork)+" and latitude <="+Math.max(comResp.latWork,comResp.latHome)+" and longitude>="+Math.min(comResp.longHome,comResp.longWork)+" and longitude <="+Math.max(comResp.longWork,comResp.longHome);
 					            rs = stmt.executeQuery(query);
@@ -195,13 +218,10 @@ public class Worker implements Runnable {
 						stmt.close();
 			            c.close();
 					} catch (ClassNotFoundException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					} catch (SQLException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					} catch (InterruptedException e) {
-						// TODO Auto-generated catch block
 						e.printStackTrace();
 					}
 					break;
