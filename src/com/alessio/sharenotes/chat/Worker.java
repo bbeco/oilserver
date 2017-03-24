@@ -69,11 +69,12 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 			            Statement stmt = c.createStatement();
-			            String query = "select latitude,longitude,oil,diesel,gpl from OILMAP";
+			            String query = "select ROWID, latitude,longitude,oil,diesel,gpl from OILMAP";
 			            ResultSet rs = stmt.executeQuery(query);
 			            SearchOilResponse msg = new SearchOilResponse();
 			            while (rs.next()) {
-							msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+							msg.oils.add(new SearchOilResponse.Oils(rs.getInt("ROWID"),
+									Double.parseDouble(rs.getString("latitude")),
 									Double.parseDouble(rs.getString("longitude")),
 									Double.parseDouble(rs.getString("oil")),
 									Double.parseDouble(rs.getString("diesel")),
@@ -97,10 +98,12 @@ public class Worker implements Runnable {
 			            		i++;
 		                    }
 		                  }
-			            json = msg.toJSONString();
-			            System.out.println(json);
-			            client.send(json);
-						Thread.sleep(100);
+			            if (rsp.oils.size() > 0) {
+				            json = rsp.toJSONString();
+				            client.send(json);
+							Thread.sleep(100);
+			            }
+			            System.out.println(msg.toJSONString());
 			            stmt.close();
 			            c.close();
 			            //client.getSocket().close();
@@ -126,15 +129,14 @@ public class Worker implements Runnable {
 						Class.forName(driverName);
 						Connection c = DriverManager.getConnection(dbOil);
 			            Statement stmt = c.createStatement();
-			            String query = "select * from OILMAP where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
-			            ResultSet rs = stmt.executeQuery(query);
-			            if(!rs.next()){
+			            if(mreq.id == -1){
 			            	System.out.println("Inserting new oil station");
 			            	String query1 = "insert into OILMAP(latitude,longitude,oil,diesel,gpl) values ("+mreq.latitude+","+mreq.longitude+","+mreq.oil+","+mreq.diesel+","+mreq.gpl+")";
 			            	stmt.executeUpdate(query1);
 			            } else {
 			            	System.out.println("Executing update on an oil station");
-			            	String query2 = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where latitude="+mreq.latitude+" and longitude="+mreq.longitude;
+			            	String query2 = "update OILMAP set oil="+mreq.oil+", diesel="+mreq.diesel+", gpl="+mreq.gpl+" where ROWID = " + mreq.id;
+			            	System.out.println(query2);
 				            stmt.executeUpdate(query2);
 			            }
 			            stmt.close();
@@ -165,11 +167,12 @@ public class Worker implements Runnable {
 				            System.out.println(query);
 				            stmt.executeUpdate(query);
 				            Thread.sleep(100);
-							query = "select latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(creq.latHome,creq.latWork)+" and latitude <="+Math.max(creq.latWork,creq.latHome)+" and longitude>="+Math.min(creq.longHome,creq.longWork)+" and longitude <="+Math.max(creq.longWork,creq.longHome);
+							query = "select ROWID, latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(creq.latHome,creq.latWork)+" and latitude <="+Math.max(creq.latWork,creq.latHome)+" and longitude>="+Math.min(creq.longHome,creq.longWork)+" and longitude <="+Math.max(creq.longWork,creq.longHome);
 				            rs = stmt.executeQuery(query);
 				            SearchOilResponse msg = new SearchOilResponse();
 				            while (rs.next()) {
-								msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+								msg.oils.add(new SearchOilResponse.Oils(rs.getInt("ROWID"),
+										Double.parseDouble(rs.getString("latitude")),
 										Double.parseDouble(rs.getString("longitude")),
 										Double.parseDouble(rs.getString("oil")),
 										Double.parseDouble(rs.getString("diesel")),
@@ -199,11 +202,12 @@ public class Worker implements Runnable {
 								client.send(json);
 								Thread.sleep(100);
 								
-								query = "select latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(comResp.latHome,comResp.latWork)+" and latitude <="+Math.max(comResp.latWork,comResp.latHome)+" and longitude>="+Math.min(comResp.longHome,comResp.longWork)+" and longitude <="+Math.max(comResp.longWork,comResp.longHome);
+								query = "select ROWID, latitude,longitude,oil,diesel,gpl from OILMAP where latitude >="+Math.min(comResp.latHome,comResp.latWork)+" and latitude <="+Math.max(comResp.latWork,comResp.latHome)+" and longitude>="+Math.min(comResp.longHome,comResp.longWork)+" and longitude <="+Math.max(comResp.longWork,comResp.longHome);
 					            rs = stmt.executeQuery(query);
 					            SearchOilResponse msg = new SearchOilResponse();
 					            while (rs.next()) {
-									msg.oils.add(new SearchOilResponse.Oils(Double.parseDouble(rs.getString("latitude")),
+									msg.oils.add(new SearchOilResponse.Oils(rs.getInt("ROWID"),
+											Double.parseDouble(rs.getString("latitude")),
 											Double.parseDouble(rs.getString("longitude")),
 											Double.parseDouble(rs.getString("oil")),
 											Double.parseDouble(rs.getString("diesel")),
